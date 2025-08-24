@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bootstrap stack for shared resources like S3 bucket, IAM role, and CodeCommit repo
+
+Parameters:
+  RepoName:
+    Type: String
+    Default: cfn-infra-repo
+
+Resources:
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-artifacts-${AWS::AccountId}"
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pipeline-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+                - codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: PipelineAndBuildAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:*
+                  - codecommit:*
+                  - codebuild:*
+                  - logs:*
+                  - cloudwatch:*
+                  - iam:PassRole
+                  - sts:AssumeRole
+                Resource: "*"
+
+  CodeRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref RepoName
+      RepositoryDescription: CloudFormation templates repo
+
+Outputs:
+  ArtifactBucketName:
+    Description: "S3 bucket name for pipeline artifacts"
+    Value: !Ref ArtifactBucket
+    Export:
+      Name: ArtifactBucketName
+
+  PipelineRoleArn:
+    Description: "IAM Role ARN for CodePipeline and CodeBuild"
+    Value: !GetAtt PipelineRole.Arn
+    Export:
+      Name: PipelineRoleArn
+
+  CodeCommitRepoName:
+    Description: "CodeCommit Repository Name"
+    Value: !Ref CodeRepo
+    Export:
+      Name: CodeCommitRepoName
